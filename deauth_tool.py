@@ -37,8 +37,8 @@ def start_monitor_mode():
 
 # Ağları tarama
 def scan_networks():
-    print("[*] Scanning nearby networks...")
-    subprocess.run(["sudo", "airodump-ng", "wlan0mon"], timeout=30)
+    print("[*] Scanning nearby networks... Press Ctrl+C to stop.")
+    subprocess.run(["sudo", "airodump-ng", "wlan0mon"])
 
 # Kullanıcıdan hedef ağ seçimi alma
 def select_target_network():
