@@ -1,4 +1,4 @@
-# BETA RELEASE v0.5
+# BETA RELEASE v1.4 (Not Usable for Now)
 ## Deauthentication Attack Tool
 A Python-based deauthentication attack tool designed for Linux terminal use. It automates airmon-ng, airodump-ng, and aireplay-ng to test WiFi security.
 # Features
